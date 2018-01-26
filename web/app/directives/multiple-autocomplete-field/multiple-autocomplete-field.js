@@ -1,4 +1,6 @@
 (function () {
+    var maxDataRowsAllowed = 200;
+    var emptyStr = '';
 
     angular.module('multipleSelect').directive('multipleAutocomplete', [
         '$filter',
@@ -25,14 +27,21 @@
                     scope.errMsgRequired = attr.errMsgRequired;
                     scope.isHover = false;
                     scope.isFocused = false;
-                    var getSuggestionsList = function () {
+                    var getSuggestionsList = function (q) {
                         var url = scope.apiUrl;
                         var method = (scope.apiUrlOption && scope.apiUrlOption.method) || "GET";
+                        var q = q || emptyStr;
                         var responseInterceptor = (scope.apiUrlOption && scope.apiUrlOption.responseInterceptor);
                         $http({
                             method: method,
-                            url: url
+                            url: url,
+                            params: {q: q}
                         }).then(function (response) {
+                            var data = response.data;
+                            if (!data.length || data.length > maxDataRowsAllowed) {
+                                scope.suggestionsArr = [];
+                                return;
+                            }
                             if(responseInterceptor && typeof responseInterceptor == "function"){
                                 responseInterceptor(response);
                             }
@@ -42,15 +51,15 @@
                         });
                     };
 
-                    if(scope.suggestionsArr == null || scope.suggestionsArr == ""){
-                        if(scope.apiUrl != null && scope.apiUrl != "")
+                    if(scope.suggestionsArr == null || scope.suggestionsArr == emptyStr){
+                        if(scope.apiUrl != null && scope.apiUrl != emptyStr)
                             getSuggestionsList();
                         else{
                             console.log("*****Angular-multiple-select **** ----- Please provide suggestion array list or url");
                         }
                     }
 
-                    if(scope.modelArr == null || scope.modelArr == ""){
+                    if(scope.modelArr == null || scope.modelArr == emptyStr){
                         scope.modelArr = [];
                     }
                     scope.onFocus = function () {
@@ -69,8 +78,9 @@
                         scope.isFocused=false;
                     };
 
-                    scope.onChange = function () {
+                    scope.onChange = function (value) {
                         scope.selectedItemIndex = 0;
+                        getSuggestionsList(value);
                     };
 
                     scope.keyParser = function ($event) {
@@ -118,16 +128,17 @@
 
                         if(scope.afterSelectItem && typeof(scope.afterSelectItem) == 'function')
                             scope.afterSelectItem(selectedValue);
-                        scope.inputValue = "";
+                        scope.inputValue = emptyStr;
 
                         if(scope.suggestionsArr.length == scope.modelArr.length){
                             scope.isHover = false;
                         }
+                        scope.suggestionsArr = [];
                     };
 
                     var isDuplicate = function (arr, item) {
                         var duplicate = false;
-                        if(arr == null || arr == "")
+                        if(arr == null || arr == emptyStr)
                             return duplicate;
 
                         for(var i=0;i<arr.length;i++){
@@ -141,7 +152,7 @@
                     scope.alreadyAddedValues = function (item) {
                         var isAdded = true;
                         isAdded = !isDuplicate(scope.modelArr, item);
-                        //if(scope.modelArr != null && scope.modelArr != ""){
+                        //if(scope.modelArr != null && scope.modelArr != emptyStr){
                         //    isAdded = scope.modelArr.indexOf(item) == -1;
                         //    console.log("****************************");
                         //    console.log(item);
@@ -152,7 +163,7 @@
                     };
 
                     scope.removeAddedValues = function (item) {
-                        if(scope.modelArr != null && scope.modelArr != "") {
+                        if(scope.modelArr != null && scope.modelArr != emptyStr) {
                             var itemIndex = scope.modelArr.indexOf(item);
                             if (itemIndex != -1) {
                                 if(scope.beforeRemoveItem && typeof(scope.beforeRemoveItem) == 'function')
